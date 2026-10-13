@@ -1,3 +1,4 @@
+use crate::i18n::tr;
 use std::collections::HashSet;
 use std::env;
 use std::io::{self, BufRead, BufReader, Read};
@@ -272,13 +273,13 @@ fn monitor_config_ui(
         Ok(status) if status.success() && reported_url.is_some() => {
             set_config_ui_launch_status(
                 &launch,
-                ConfigUiLaunchStatus::Failed("session closed; click to reopen".to_string()),
+                ConfigUiLaunchStatus::Failed(tr("session closed; click to reopen").to_string()),
             );
         }
         Ok(status) if status.success() => {
             set_config_ui_launch_status(
                 &launch,
-                ConfigUiLaunchStatus::Failed("exited before reporting a URL".to_string()),
+                ConfigUiLaunchStatus::Failed(tr("exited before reporting a URL").to_string()),
             );
         }
         Ok(status) => {
@@ -762,19 +763,19 @@ impl SidebarApp {
 
     fn tree_degraded_label(&self) -> Option<&'static str> {
         if self.last_error.is_some() {
-            Some("ccbd ✕")
+            Some(tr("ccbd ✕"))
         } else if self.sidebar_config_error().is_some() {
-            Some("config ✕")
+            Some(tr("config ✕"))
         } else if matches!(
             self.config_ui_launch_status(),
             Some(ConfigUiLaunchStatus::Failed(_))
         ) {
-            Some("config ui ✕")
+            Some(tr("config ui ✕"))
         } else if matches!(
             self.config_ui_launch_status(),
             Some(ConfigUiLaunchStatus::Manual(_))
         ) {
-            Some("config ui !")
+            Some(tr("config ui !"))
         } else {
             None
         }
@@ -785,7 +786,7 @@ impl SidebarApp {
         match launch.lock() {
             Ok(status) => Some(status.clone()),
             Err(_) => Some(ConfigUiLaunchStatus::Failed(
-                "status unavailable; click to retry".to_string(),
+                tr("status unavailable; click to retry").to_string(),
             )),
         }
     }
@@ -803,10 +804,10 @@ impl SidebarApp {
 
     fn config_ui_status_line(&self) -> Option<String> {
         match self.config_ui_launch_status()? {
-            ConfigUiLaunchStatus::Opening => Some("config ui: opening...".to_string()),
-            ConfigUiLaunchStatus::Ready(url) => Some(format!("config ui: {url}")),
-            ConfigUiLaunchStatus::Manual(url) => Some(format!("config ui open manually: {url}")),
-            ConfigUiLaunchStatus::Failed(error) => Some(format!("config ui failed: {error}")),
+            ConfigUiLaunchStatus::Opening => Some(tr("config ui: opening...").to_string()),
+            ConfigUiLaunchStatus::Ready(url) => Some(format!("{}: {url}", tr("config ui"))),
+            ConfigUiLaunchStatus::Manual(url) => Some(format!("{}: {url}", tr("config ui open manually"))),
+            ConfigUiLaunchStatus::Failed(error) => Some(format!("{}: {error}", tr("config ui failed"))),
         }
     }
 
@@ -1375,9 +1376,9 @@ fn tree_rows(app: &SidebarApp) -> Vec<ListItem<'static>> {
     }
     if rows.is_empty() {
         rows.push(ListItem::new(Line::from(if app.last_error.is_some() {
-            "ccbd unavailable"
+            tr("ccbd unavailable")
         } else {
-            "waiting for ProjectView"
+            tr("waiting for ProjectView")
         })));
     }
     rows
@@ -1437,22 +1438,22 @@ fn tree_title_from_parts(
     let cross_window_focus = active != pane_window;
     let title = if cross_window_focus {
         degraded_label
-            .map(|label| format!("focus:{active} · {label}"))
-            .unwrap_or_else(|| format!("focus:{active}"))
+            .map(|label| format!("{}:{active} · {label}", tr("focus")))
+            .unwrap_or_else(|| format!("{}:{active}", tr("focus")))
     } else if let Some(label) = degraded_label {
         label.to_string()
     } else {
         String::new()
     };
     let available = usize::from(width.saturating_sub(2));
-    if title.chars().count() <= available {
+    if Line::from(title.as_str()).width() <= available {
         title
     } else if cross_window_focus && degraded_label.is_some() {
-        "focus warn".to_string()
+        tr("focus warn").to_string()
     } else if cross_window_focus {
-        "focus".to_string()
+        tr("focus").to_string()
     } else if degraded_label.is_some() {
-        "warn".to_string()
+        tr("warn").to_string()
     } else {
         String::new()
     }
@@ -1524,7 +1525,7 @@ pub(crate) fn agent_row_spans(agent: &AgentView, theme: SidebarTheme) -> Vec<Spa
         Span::raw(display_name),
     ];
     if auth_blocked {
-        spans.push(Span::styled(" [login]", Style::default().fg(theme.danger)));
+        spans.push(Span::styled(tr(" [login]"), Style::default().fg(theme.danger)));
     } else {
         spans.push(Span::raw(format!(" [{}]", provider_display_name)));
     }
@@ -1569,9 +1570,9 @@ fn reload_drain_label(agent: &AgentView) -> Option<String> {
         .map(|record| record.status.trim())
         .unwrap_or_default();
     if status.is_empty() {
-        Some("drain".to_string())
+        Some(tr("drain").to_string())
     } else {
-        Some(format!("drain:{status}"))
+        Some(format!("{}:{}", tr("drain"), tr(status)))
     }
 }
 
@@ -1580,9 +1581,9 @@ fn draw_comms(frame: &mut Frame<'_>, area: Rect, app: &SidebarApp) {
     if app.last_error.is_some() {
         lines.push(Line::from(Span::styled(
             if app.view().is_some() {
-                "stale ProjectView"
+                tr("stale ProjectView")
             } else {
-                "ccbd unavailable"
+                tr("ccbd unavailable")
             },
             Style::default().fg(app.theme().warning),
         )));
@@ -1590,7 +1591,7 @@ fn draw_comms(frame: &mut Frame<'_>, area: Rect, app: &SidebarApp) {
     if let Some(error) = app.sidebar_config_error() {
         lines.push(Line::from(Span::styled(
             truncate_comms_preview(
-                &format!("config error: {error}"),
+                &format!("{}: {error}", tr("config error")),
                 usize::from(area.width.saturating_sub(2)),
             ),
             Style::default().fg(app.theme().warning),
@@ -1600,8 +1601,8 @@ fn draw_comms(frame: &mut Frame<'_>, area: Rect, app: &SidebarApp) {
         lines.push(Line::from(Span::styled(
             truncate_comms_preview(&status, usize::from(area.width.saturating_sub(2))),
             Style::default().fg(
-                if status.starts_with("config ui failed:")
-                    || status.starts_with("config ui open manually:")
+                if status.starts_with(tr("config ui failed"))
+                    || status.starts_with(tr("config ui open manually"))
                 {
                     app.theme().warning
                 } else {
@@ -1656,7 +1657,7 @@ fn draw_comms(frame: &mut Frame<'_>, area: Rect, app: &SidebarApp) {
                 .position(scrollbar_position)
                 .viewport_content_length(visible_capacity);
             let paragraph =
-                Paragraph::new(lines).block(Block::default().title("Comms").borders(Borders::ALL));
+                Paragraph::new(lines).block(Block::default().title(tr("Comms")).borders(Borders::ALL));
             frame.render_widget(paragraph, area);
             frame.render_stateful_widget(
                 scrollbar,
@@ -1670,10 +1671,10 @@ fn draw_comms(frame: &mut Frame<'_>, area: Rect, app: &SidebarApp) {
         }
     }
     if lines.is_empty() {
-        lines.push(Line::from("no comms"));
+        lines.push(Line::from(tr("no comms")));
     }
     let paragraph =
-        Paragraph::new(lines).block(Block::default().title("Comms").borders(Borders::ALL));
+        Paragraph::new(lines).block(Block::default().title(tr("Comms")).borders(Borders::ALL));
     frame.render_widget(paragraph, area);
 }
 
@@ -1742,10 +1743,10 @@ fn draw_tips(frame: &mut Frame<'_>, area: Rect, app: &SidebarApp) {
         .sidebar_view()
         .tips
         .iter()
-        .map(|tip| Line::from(truncate_comms_preview(tip, content_width)))
+        .map(|tip| Line::from(truncate_comms_preview(tr(tip), content_width)))
         .collect::<Vec<_>>();
     if lines.is_empty() {
-        lines.push(Line::from("no tips"));
+        lines.push(Line::from(tr("no tips")));
     }
     let scroll = app
         .tips_scroll
@@ -1756,7 +1757,7 @@ fn draw_tips(frame: &mut Frame<'_>, area: Rect, app: &SidebarApp) {
         .take(content_height.max(1))
         .collect::<Vec<_>>();
     let paragraph =
-        Paragraph::new(visible_lines).block(Block::default().title("Tips").borders(Borders::ALL));
+        Paragraph::new(visible_lines).block(Block::default().title(tr("Tips")).borders(Borders::ALL));
     frame.render_widget(paragraph, area);
     if needs_scrollbar {
         let scrollbar = sidebar_scrollbar(app.theme());
@@ -1854,7 +1855,7 @@ fn comms_lines_with_theme(
     )));
     push_comms_short_id_span(&mut first_line_spans, item, theme);
     first_line_spans.push(Span::styled(
-        compact_comms_status(status).to_string(),
+        tr(compact_comms_status(status)).to_string(),
         Style::default().fg(comms_status_color_with_theme(item, theme)),
     ));
     let mut lines = vec![Line::from(first_line_spans)];
@@ -1874,7 +1875,7 @@ fn compact_comms_lines(item: &CommsItem, width: usize, theme: SidebarTheme) -> V
         empty_dash(&item.sender),
         empty_dash(&item.target)
     );
-    let compact_status = compact_comms_status(status).to_string();
+    let compact_status = tr(compact_comms_status(status)).to_string();
     let mut spans = comms_action_spans(item, theme);
     spans.push(Span::raw(route.clone()));
     push_comms_short_id_span(&mut spans, item, theme);
@@ -1989,14 +1990,19 @@ fn comms_display_status(item: &CommsItem) -> &str {
 
 fn truncate_comms_preview(value: &str, width: usize) -> String {
     let text = value.trim();
-    if width <= 3 {
-        return text.chars().take(width).collect();
-    }
-    if text.chars().count() <= width {
+    if Line::from(text).width() <= width {
         return text.to_string();
     }
-    let head: String = text.chars().take(width.saturating_sub(3)).collect();
-    format!("{head}...")
+    let suffix = if width > 3 { "..." } else { "" };
+    let available = width.saturating_sub(suffix.len());
+    let mut used = 0;
+    let head: String = text.chars().take_while(|ch| {
+        let cells = Span::raw(ch.to_string()).width();
+        if used + cells > available { return false; }
+        used += cells;
+        true
+    }).collect();
+    format!("{head}{suffix}")
 }
 
 fn comms_reason(item: &CommsItem) -> Option<String> {

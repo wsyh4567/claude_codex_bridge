@@ -42,7 +42,7 @@ def test_config_ui_asset_is_packaged_source_content() -> None:
     assert path == repo_root / 'assets' / 'config_ui' / 'index.html'
     assert path.is_file()
     page = path.read_text(encoding='utf-8')
-    assert '<html lang="en">' in page
+    assert '<html lang="zh-CN">' in page
     assert '<title>CCB Config Control Panel Demo</title>' in page
     assert 'id="staticDeletePane"' in page
     assert 'id="basicDeletePane"' in page

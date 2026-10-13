@@ -3,8 +3,8 @@ i18n - Internationalization support for CCB
 
 Language detection priority:
 1. CCB_LANG environment variable (zh/en/auto)
-2. System locale (LANG/LC_ALL/LC_MESSAGES)
-3. Default to English
+2. Default to Chinese in this fork
+3. CCB_LANG=auto uses the system locale, with English fallback
 """
 
 from __future__ import annotations
@@ -130,11 +130,11 @@ MESSAGES = {
 
 def detect_language() -> str:
     """Detect language from environment."""
-    ccb_lang = os.environ.get("CCB_LANG", "auto").lower()
+    ccb_lang = os.environ.get("CCB_LANG", "zh").strip().lower()
 
-    if ccb_lang in ("zh", "cn", "chinese"):
+    if ccb_lang.startswith("zh") or ccb_lang in ("cn", "chinese"):
         return "zh"
-    if ccb_lang in ("en", "english"):
+    if ccb_lang.startswith("en"):
         return "en"
 
     try:

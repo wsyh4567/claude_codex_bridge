@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -2306,7 +2306,7 @@ model = "gpt-5.5"</pre>
       : [navigator.language];
     let lang = requestedLanguage
       ? normalizeLanguage(requestedLanguage)
-      : normalizeLanguage(browserLanguages[0]);
+      : "zh";
 
     function t(key) {
       return text[lang][key] || text.en[key] || key;

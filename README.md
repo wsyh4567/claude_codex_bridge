@@ -1,3 +1,11 @@
+# CCB 简体中文分支
+
+此分支默认使用简体中文，提供中文侧栏、通信状态、快捷键、常用命令帮助和配置页面，并修复 Windows 侧栏的本地 TCP 认证连接及原生程序启动路径。
+
+- [中文版安装与构建说明](README/zh-fork.md)
+- [完整中文使用文档](README/zh.md)
+- 英文界面：设置 `CCB_LANG=en`；Python 命令行可用 `CCB_LANG=auto` 跟随系统语言。
+
 <div align="center">
 
 # CCB - Mobile Has Arrived!

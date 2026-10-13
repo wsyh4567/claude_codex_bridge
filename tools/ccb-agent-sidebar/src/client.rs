@@ -156,14 +156,79 @@ fn request_unix_socket(
     Ok(serde_json::Value::Object(payload))
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
 fn request_unix_socket(
-    _socket_path: &Path,
-    _timeout: Duration,
-    _op: &str,
-    _request: serde_json::Value,
+    socket_path: &Path,
+    timeout: Duration,
+    op: &str,
+    request: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    Err("Unix sockets are not supported on this platform".to_string())
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
+
+    let descriptor = socket_path.parent().ok_or("missing endpoint directory")?
+        .join("control-plane-endpoint.json");
+    let endpoint: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(descriptor).map_err(|err| format!("read endpoint: {err}"))?
+    ).map_err(|_| "invalid endpoint descriptor")?;
+    let address: SocketAddr = endpoint.get("address").and_then(|v| v.as_str())
+        .ok_or("missing endpoint address")?.parse().map_err(|_| "invalid endpoint address")?;
+    if endpoint["kind"] != "tcp_loopback"
+        || address.ip() != IpAddr::V4(Ipv4Addr::LOCALHOST) || address.port() == 0 {
+        return Err("ccbd endpoint must be an IPv4 loopback TCP address".into());
+    }
+    let token_path = endpoint.get("token_ref").or_else(|| endpoint.get("auth_ref"))
+        .and_then(|v| v.as_str()).filter(|v| !v.is_empty()).ok_or("missing token reference")?;
+    let token: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(token_path).map_err(|_| "cannot read ccbd authentication token")?
+    ).map_err(|_| "invalid ccbd authentication token")?;
+    let secret = token.get("token").and_then(|v| v.as_str())
+        .filter(|v| !v.is_empty()).ok_or("empty ccbd authentication token")?;
+    if token["schema"] != "ccbd-control-plane-token-v1"
+        || token.get("generation").and_then(|v| v.as_str()).filter(|v| !v.is_empty()).is_none()
+        || token["generation"] != endpoint["generation"] {
+        return Err("invalid or stale ccbd authentication token".into());
+    }
+    let mut stream = TcpStream::connect_timeout(&address, timeout)
+        .map_err(|err| format!("connect ccbd: {err}"))?;
+    stream.set_read_timeout(Some(timeout)).map_err(|err| err.to_string())?;
+    stream.set_write_timeout(Some(timeout)).map_err(|err| err.to_string())?;
+    let auth = json!({"schema": "ccbd-control-plane-token-v1", "token": secret});
+    stream.write_all(format!("{auth}\n").as_bytes())
+        .map_err(|_| "ccbd authentication write failed")?;
+    let ack = read_tcp_frame(&mut stream, 4096)?;
+    if ack["schema"] != "ccbd-control-plane-token-ack-v1" || ack["ok"] != true {
+        return Err("ccbd authentication rejected".into());
+    }
+    let request = json!({"api_version": 2, "op": op, "request": request});
+    stream.write_all(format!("{request}\n").as_bytes())
+        .map_err(|err| format!("write request: {err}"))?;
+    let response = read_tcp_frame(&mut stream, 1024 * 1024)?;
+    if response["ok"] != true {
+        return Err(response["error"].as_str().unwrap_or("ccbd request failed").into());
+    }
+    let mut payload = response.as_object().cloned().ok_or("invalid ccbd response")?;
+    payload.remove("api_version");
+    payload.remove("ok");
+    Ok(serde_json::Value::Object(payload))
+}
+
+#[cfg(windows)]
+fn read_tcp_frame(stream: &mut std::net::TcpStream, limit: usize) -> Result<serde_json::Value, String> {
+    let mut data = Vec::new();
+    let mut byte = [0u8; 1];
+    while data.len() < limit {
+        stream.read_exact(&mut byte).map_err(|err| format!("read ccbd frame: {err}"))?;
+        if byte[0] == b'\n' {
+            return serde_json::from_slice(&data).map_err(|_| "invalid ccbd response JSON".into());
+        }
+        data.push(byte[0]);
+    }
+    Err("ccbd response exceeds maximum size".into())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn request_unix_socket(_: &Path, _: Duration, _: &str, _: serde_json::Value) -> Result<serde_json::Value, String> {
+    Err("unsupported ccbd transport platform".into())
 }
 
 #[cfg(all(test, unix))]

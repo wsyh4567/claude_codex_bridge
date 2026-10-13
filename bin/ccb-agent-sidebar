@@ -9,6 +9,9 @@ while [[ -L "$SOURCE" ]]; do
   [[ "$SOURCE" == /* ]] || SOURCE="$DIR/$SOURCE"
 done
 REPO_ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+if [[ -x "$REPO_ROOT/bin/ccb-agent-sidebar.exe" ]]; then
+  exec "$REPO_ROOT/bin/ccb-agent-sidebar.exe" "$@"
+fi
 TARGET_BIN="$REPO_ROOT/tools/ccb-agent-sidebar/target/release/ccb-agent-sidebar"
 
 if [[ -x "$TARGET_BIN" ]]; then

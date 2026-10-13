@@ -56,6 +56,11 @@ def parse_start_args(argv: Sequence[str]) -> argparse.Namespace:
 
 
 def print_start_help(*, file=None) -> None:
+    from ui_text.i18n import get_lang
+    if get_lang() == "zh":
+        from ui_text.help_zh import START_HELP
+        print(START_HELP, file=file)
+        return
     print(
         dedent(
             """
@@ -150,6 +155,11 @@ def print_start_help(*, file=None) -> None:
 
 
 def print_kill_help(*, file=None) -> None:
+    from ui_text.i18n import get_lang
+    if get_lang() == "zh":
+        from ui_text.help_zh import command_help
+        print(command_help("kill"), file=file)
+        return
     print(
         dedent(
             """
@@ -170,6 +180,13 @@ def print_kill_help(*, file=None) -> None:
 
 
 def print_command_help(command_name: str, *, file=None) -> bool:
+    from ui_text.i18n import get_lang
+    if get_lang() == "zh":
+        from ui_text.help_zh import command_help
+        translated = command_help(command_name)
+        if translated is not None:
+            print(translated, file=file)
+            return True
     text = _COMMAND_HELP.get(command_name)
     if text is None:
         return False
